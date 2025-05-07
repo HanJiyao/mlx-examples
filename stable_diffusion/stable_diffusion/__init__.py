@@ -5,6 +5,10 @@ from typing import Optional, Tuple
 
 import mlx.core as mx
 
+import taesd
+import torch
+import numpy as np
+
 from .model_io import (
     _DEFAULT_MODEL,
     load_autoencoder,
@@ -14,6 +18,7 @@ from .model_io import (
     load_unet,
 )
 from .sampler import SimpleEulerAncestralSampler, SimpleEulerSampler
+from safetensors.torch import load_model
 
 
 class StableDiffusion:
@@ -164,8 +169,16 @@ class StableDiffusion:
         )
 
     def decode(self, x_t):
-        x = self.autoencoder.decode(x_t)
-        x = mx.clip(x / 2 + 0.5, 0, 1)
+        print(x_t)
+        # x = self.autoencoder.decode(x_t)
+        device = torch.device("cpu")
+        taesd_dec = taesd.Decoder().to(device).requires_grad_(False)
+        load_model(taesd_dec, "taesd_decoder.safetensors")
+        tensor_permuted = torch.tensor(np.array(x_t)).to(torch.float32).permute(0, 3, 1, 2)
+        print(tensor_permuted.shape)
+        decoded = taesd_dec(tensor_permuted).permute(0, 2, 3, 1)
+        print(decoded)
+        x = mx.clip(mx.array(decoded) / 2 + 0.5, 0, 1)
         return x
 
 

@@ -15,7 +15,7 @@ if __name__ == "__main__":
         description="Generate images from a textual prompt using stable diffusion"
     )
     parser.add_argument("prompt")
-    parser.add_argument("--model", choices=["sd", "sdxl"], default="sdxl")
+    parser.add_argument("--model", choices=["sd", "sdxl", "anything"], default="sdxl")
     parser.add_argument("--n_images", type=int, default=4)
     parser.add_argument("--steps", type=int)
     parser.add_argument("--cfg", type=float)
@@ -43,6 +43,18 @@ if __name__ == "__main__":
             nn.quantize(sd.unet, group_size=32, bits=8)
         args.cfg = args.cfg or 0.0
         args.steps = args.steps or 2
+    elif args.model == "anything":
+        sd = StableDiffusion(
+            "stablediffusionapi/anything-v5", float16=args.float16
+        )
+        if args.quantize:
+            nn.quantize(
+                sd.text_encoder, class_predicate=lambda _, m: isinstance(m, nn.Linear)
+            )
+            nn.quantize(sd.unet, group_size=32, bits=8)
+        args.cfg = args.cfg or 7.5
+        args.steps = args.steps or 30
+        args.n_images = args.n_images or 1
     else:
         sd = StableDiffusion(
             "stabilityai/stable-diffusion-2-1-base", float16=args.float16
